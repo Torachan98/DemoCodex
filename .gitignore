@@ -1,0 +1,6 @@
+api_write_user/node_modules/
+api_write_user/dist/
+api_sync_user/node_modules/
+api_sync_user/dist/
+api_read_users/node_modules/
+api_read_users/dist/
