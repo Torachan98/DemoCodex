@@ -10,32 +10,28 @@ type Params = {
 };
 
 export const sync = async (beginer: Params, destination: Params) => {
-  beginer.client.connect();
-  destination.client.connect();
-
   const queryBeginnerDatabase = await query<User>(beginer);
   const queryDestinationDatabase = await query<User>(destination);
 
   const data = await queryBeginnerDatabase.find({ isSync: false }).toArray();
-  if (data.length > 0) {
-    try {
-      const result = await queryDestinationDatabase.insertMany(
-        data.map((s) => ({
-          ...s,
-          isSync: true,
-          dateSynced: createDate(new Date()),
-        })),
-      );
+  if (data.length === 0) {
+    return;
+  }
 
-      if (result.insertedCount > 0) {
-        await removeRecords(beginer, data);
-      }
-    } catch (ex) {
-      console.log(ex);
-    } finally {
-      beginer.client.close();
-      destination.client.close();
+  try {
+    const result = await queryDestinationDatabase.insertMany(
+      data.map((s) => ({
+        ...s,
+        isSync: true,
+        dateSynced: createDate(new Date()),
+      })),
+    );
+
+    if (result.insertedCount > 0) {
+      await removeRecords(beginer, data);
     }
+  } catch (ex) {
+    console.log(ex);
   }
 };
 
