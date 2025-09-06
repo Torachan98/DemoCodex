@@ -1,6 +1,6 @@
-import { BSON, ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { query } from "../../mongodb-init";
-import { User, UserCreate, UserFilter } from "../interfaces/user.interface";
+import { User, UserCreate } from "../interfaces/user.interface";
 import { USER } from "../shared/context_information";
 
 
@@ -29,27 +29,30 @@ const createUser = async (user: UserCreate): Promise<User> => {
 }
 
 
-const updateUser = async (id: string, user: User): Promise<User> => {
+const updateUser = async (id: string, user: Partial<User>): Promise<User | null> => {
     const queryUser = await query<User>({ nameCollection: USER.WRITE_COLLECTION });
-    if(id === "") {
-        return {} as User;
+    if (!ObjectId.isValid(id)) {
+        return null;
     }
 
-    user.isSync = false;
-    user.dateCreated = createDate(new Date());
+    const updateDoc: Partial<User> = {
+        ...user,
+        isSync: false,
+        dateCreated: createDate(new Date()),
+    };
 
-    const updateObject = await queryUser.updateOne({ _id: new ObjectId(id) }, {...user});
-    return await queryUser.findOne(updateObject.upsertedId);
+    await queryUser.updateOne({ _id: new ObjectId(id) }, { $set: updateDoc });
+    return queryUser.findOne({ _id: new ObjectId(id) });
 }
 
 
 const deleteUser = async (id: string): Promise<boolean> => {
     const queryUser = await query<User>({ nameCollection: USER.WRITE_COLLECTION });
-    if(id === "") {
-        return false
+    if (!ObjectId.isValid(id)) {
+        return false;
     }
 
-    const remove = await queryUser.deleteOne({ _id: new ObjectId(id) });    
+    const remove = await queryUser.deleteOne({ _id: new ObjectId(id) });
     return remove.deletedCount > 0;
 }
 

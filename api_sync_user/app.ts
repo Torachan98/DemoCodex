@@ -42,8 +42,7 @@ app.post('/sync-manual', async (req, res) => {
     res.send({ response: true });
   } catch (ex) {
     console.error(ex);
-  } finally {
-    res.send({ response: false });
+    res.status(500).send({ response: false });
   }
 });
 
@@ -57,27 +56,28 @@ app.listen(port, async () => {
     await clientDestination.db(process.env.DB_CONTEXT_DESTINATION).command({ ping: 1 });
     console.info('connected database 2');
   } catch (ex) {
-    console.error(`Database cannot connect`, ex.message);
-  } finally {
-    clientStart.close();
-    clientDestination.close();
+    console.error('Database cannot connect', (ex as Error).message);
   }
 
   console.log(`🚀 Express is listening at http://127.0.0.1:${port}`);
 });
 
 schedule('*/15 * * * *', async () => {
-  await sync(
-    {
-      nameCollection: USER.WRITE_COLLECTION,
-      context: process.env.DB_CONTEXT_BEGINER,
-      client: clientStart,
-    },
-    {
-      nameCollection: USER.READ_COLLECTION,
-      context: process.env.DB_CONTEXT_DESTINATION,
-      client: clientDestination,
-    },
-  );
-  console.log('Sync success');
+  try {
+    await sync(
+      {
+        nameCollection: USER.WRITE_COLLECTION,
+        context: process.env.DB_CONTEXT_BEGINER,
+        client: clientStart,
+      },
+      {
+        nameCollection: USER.READ_COLLECTION,
+        context: process.env.DB_CONTEXT_DESTINATION,
+        client: clientDestination,
+      },
+    );
+    console.log('Sync success');
+  } catch (ex) {
+    console.error('Sync failed', (ex as Error).message);
+  }
 });

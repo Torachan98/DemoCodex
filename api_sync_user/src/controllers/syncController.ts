@@ -9,43 +9,62 @@ type Params = {
   context: string;
 };
 
-export const sync = async (beginer: Params, destination: Params) => {
-  beginer.client.connect();
-  destination.client.connect();
-
+export const sync = async (
+  beginer: Params,
+  destination: Params,
+  batchSize = 100,
+  timeoutMs = 5000,
+) => {
   const queryBeginnerDatabase = await query<User>(beginer);
   const queryDestinationDatabase = await query<User>(destination);
 
-  const data = await queryBeginnerDatabase.find({ isSync: false }).toArray();
-  if (data.length > 0) {
+  while (true) {
+    const data = await queryBeginnerDatabase
+      .find({ isSync: false })
+      .limit(batchSize)
+      .toArray();
+    if (data.length === 0) {
+      break;
+    }
+
     try {
-      const result = await queryDestinationDatabase.insertMany(
-        data.map((s) => ({
-          ...s,
-          isSync: true,
-          dateSynced: createDate(new Date()),
-        })),
+      const result = await withTimeout(
+        queryDestinationDatabase.insertMany(
+          data.map((s) => ({
+            ...s,
+            isSync: true,
+            dateSynced: createDate(new Date()),
+          })),
+        ),
+        timeoutMs,
       );
 
       if (result.insertedCount > 0) {
-        await removeRecords(beginer, data);
+        await withTimeout(removeRecords(beginer, data), timeoutMs);
       }
     } catch (ex) {
-      console.log(ex);
-    } finally {
-      beginer.client.close();
-      destination.client.close();
+      throw new Error(`Failed to sync batch: ${(ex as Error).message}`);
     }
   }
 };
 
 const removeRecords = async (beginer: Params, users: Array<User>) => {
-  try {
-    const queryBeginnerDatabase = await query<User>(beginer);
+  const queryBeginnerDatabase = await query<User>(beginer);
+  const userIds = users.map((u) => u._id);
+  await queryBeginnerDatabase.updateMany({ _id: { $in: userIds } }, { $set: { isSync: true } });
+};
 
-    const userIds = users.map((u) => u._id);
-    await queryBeginnerDatabase.updateMany({ _id: { $in: userIds } }, { $set: { isSync: true } });
-  } catch (ex) {
-    throw ex;
-  }
+const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Operation timed out')), ms);
+    promise
+      .then((val) => {
+        clearTimeout(timer);
+        resolve(val);
+      })
+      .catch((err) => {
+        clearTimeout(timer);
+        reject(err);
+      });
+  });
 };

@@ -17,33 +17,38 @@ app.get('/user/:id', async (req,res) => {
   });
 });
 
-app.get('/users', async (req,res) => {
+app.get('/users', async (req, res) => {
   const { username, email } = req.query;
-  const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 0;
-  const pageNumb =  req.query.pageNumber ? parseInt(req.query.pageNumber as string) : 0;
+  const pageSize = req.query.pageSize
+    ? parseInt(req.query.pageSize as string, 10)
+    : 10;
+  const pageNumber = req.query.pageNumber
+    ? parseInt(req.query.pageNumber as string, 10)
+    : 1;
 
   const userQuery: UserFilter = {
     username: username as string,
     email: email as string,
   };
 
-  const result = await getUsers({ pageNumber: pageNumb, pageSize: pageSize, }, { ...userQuery });
+  const result = await getUsers(
+    { pageNumber, pageSize },
+    { ...userQuery },
+  );
   res.send({
     response: result,
-    pageSize: pageSize,
-    pageNumber: pageNumb
+    pageSize,
+    pageNumber,
   });
 });
 
 app.listen(port, async () => {
-  try {    
+  try {
     await client.connect();
     await client.db(process.env.DB_CONTEXT).command({ ping: 1 });
-    console.log(`Database connected`);
+    console.log('Database connected');
   } catch (ex) {
-    console.error(`Database cannot connect`, ex.message);
-  } finally {
-    await client.close();
+    console.error('Database cannot connect', (ex as Error).message);
   }
 
   console.log(`🚀 Express is listening at http://127.0.0.1:${port}`);
