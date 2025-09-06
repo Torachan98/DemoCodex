@@ -63,17 +63,21 @@ app.listen(port, async () => {
 });
 
 schedule('*/15 * * * *', async () => {
-  await sync(
-    {
-      nameCollection: USER.WRITE_COLLECTION,
-      context: process.env.DB_CONTEXT_BEGINER,
-      client: clientStart,
-    },
-    {
-      nameCollection: USER.READ_COLLECTION,
-      context: process.env.DB_CONTEXT_DESTINATION,
-      client: clientDestination,
-    },
-  );
-  console.log('Sync success');
+  try {
+    await sync(
+      {
+        nameCollection: USER.WRITE_COLLECTION,
+        context: process.env.DB_CONTEXT_BEGINER,
+        client: clientStart,
+      },
+      {
+        nameCollection: USER.READ_COLLECTION,
+        context: process.env.DB_CONTEXT_DESTINATION,
+        client: clientDestination,
+      },
+    );
+    console.log('Sync success');
+  } catch (ex) {
+    console.error('Sync failed', (ex as Error).message);
+  }
 });

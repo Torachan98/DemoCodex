@@ -1,4 +1,4 @@
-import { ObjectId } from "mongodb";
+import { Filter, ObjectId } from "mongodb";
 import { query } from "../../mongodb-init";
 import { User, UserFilter } from "../interfaces/user.interface";
 import { USER } from "../shared/context_information";
@@ -19,14 +19,14 @@ const getUsers = async (
 ): Promise<User[]> => {
     const queryUser = await query<User>({ nameCollection: USER.READ_COLLECTION });
 
-    const filter: Partial<User> = {};
+    const filter: Filter<User> = {};
 
     if (user.email) {
-        filter.email = user.email;
+        filter.email = { $regex: new RegExp(user.email, 'i') };
     }
 
     if (user.username) {
-        filter.username = user.username;
+        filter.username = { $regex: new RegExp(user.username, 'i') };
     }
 
     let cursor = queryUser.find(filter);
