@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
 using MongoDB.Driver;
-using ApiWriteUser.Models;
+using ApiWriteUser.Business;
+using ApiWriteUser.Repositories;
+using ApiWriteUser.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,58 +13,27 @@ var context = Environment.GetEnvironmentVariable("DB_CONTEXT") ?? "user";
 var connectionString = $"mongodb://{host}:{port}/?authSource={context}";
 builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(context));
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IUserService, UserService>();
 
 var app = builder.Build();
 
-var db = app.Services.GetRequiredService<IMongoDatabase>();
-var writeCollection = db.GetCollection<User>("user_write");
-
-app.MapPost("/user", async (UserCreate request) =>
+app.MapPost("/user", async (UserCreate request, IUserService service) =>
 {
-    var user = new User
-    {
-        Id = ObjectId.GenerateNewId(),
-        Username = request.Username,
-        Email = request.Email,
-        IsActive = true,
-        IsSync = false,
-        DateCreated = DateTime.UtcNow,
-        DateUpdated = DateTime.UtcNow
-    };
-
-    await writeCollection.InsertOneAsync(user);
+    var user = await service.CreateAsync(request);
     return Results.Ok(new { response = user });
 });
 
-app.MapPut("/user/{id}", async (string id, UserCreate request) =>
+app.MapPut("/user/{id}", async (string id, UserCreate request, IUserService service) =>
 {
-    if (!ObjectId.TryParse(id, out var objectId))
-        return Results.NotFound();
-
-    var update = Builders<User>.Update
-        .Set(u => u.Username, request.Username)
-        .Set(u => u.Email, request.Email)
-        .Set(u => u.IsSync, false)
-        .Set(u => u.DateUpdated, DateTime.UtcNow);
-
-    var result = await writeCollection.FindOneAndUpdateAsync<User>(
-        u => u.Id == objectId,
-        update,
-        new FindOneAndUpdateOptions<User> { ReturnDocument = ReturnDocument.After });
-
-    if (result is null)
-        return Results.NotFound();
-
-    return Results.Ok(new { response = result });
+    var result = await service.UpdateAsync(id, request);
+    return result is null ? Results.NotFound() : Results.Ok(new { response = result });
 });
 
-app.MapDelete("/user/{id}", async (string id) =>
+app.MapDelete("/user/{id}", async (string id, IUserService service) =>
 {
-    if (!ObjectId.TryParse(id, out var objectId))
-        return Results.NotFound();
-
-    var result = await writeCollection.DeleteOneAsync(u => u.Id == objectId);
-    return Results.Ok(new { response = result.DeletedCount > 0 });
+    var deleted = await service.DeleteAsync(id);
+    return Results.Ok(new { response = deleted });
 });
 
 app.Run();

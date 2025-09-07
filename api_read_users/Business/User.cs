@@ -1,7 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace ApiWriteUser.Models;
+namespace ApiReadUsers.Business;
 
 public class User
 {

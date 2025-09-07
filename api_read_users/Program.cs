@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
 using MongoDB.Driver;
-using ApiReadUsers.Models;
+using ApiReadUsers.Business;
+using ApiReadUsers.Repositories;
+using ApiReadUsers.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,42 +13,26 @@ var context = Environment.GetEnvironmentVariable("DB_CONTEXT") ?? "user";
 var connectionString = $"mongodb://{host}:{port}/?authSource={context}";
 builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(context));
+builder.Services.AddSingleton<IUserRepository, UserRepository>();
+builder.Services.AddSingleton<IUserService, UserService>();
 
 var app = builder.Build();
 
-var db = app.Services.GetRequiredService<IMongoDatabase>();
-var readCollection = db.GetCollection<User>("user_read");
-
-app.MapGet("/user/{id}", async (string id) =>
+app.MapGet("/user/{id}", async (string id, IUserService service) =>
 {
-    if (!ObjectId.TryParse(id, out var objectId))
-        return Results.NotFound();
-
-    var user = await readCollection.Find(u => u.Id == objectId).FirstOrDefaultAsync();
-    return Results.Ok(new { response = user });
+    var user = await service.GetUserAsync(id);
+    return user is null ? Results.NotFound() : Results.Ok(new { response = user });
 });
 
 app.MapGet("/users", async (
     [FromQuery] string? username,
     [FromQuery] string? email,
-    [FromQuery] int pageSize = 10,
-    [FromQuery] int pageNumber = 1) =>
+    [FromQuery] int pageSize,
+    [FromQuery] int pageNumber,
+    IUserService service) =>
 {
-    var filter = Builders<User>.Filter.Empty;
-    if (!string.IsNullOrEmpty(username))
-        filter &= Builders<User>.Filter.Eq(u => u.Username, username);
-    if (!string.IsNullOrEmpty(email))
-        filter &= Builders<User>.Filter.Eq(u => u.Email, email);
-
-    if (pageSize <= 0) pageSize = 10;
-    if (pageNumber <= 0) pageNumber = 1;
-
-    var users = await readCollection.Find(filter)
-        .Skip((pageNumber - 1) * pageSize)
-        .Limit(pageSize)
-        .ToListAsync();
-
-    return Results.Ok(new { response = users, pageSize, pageNumber });
+    var result = await service.GetUsersAsync(username, email, pageSize, pageNumber);
+    return Results.Ok(new { response = result.Users, pageSize = result.PageSize, pageNumber = result.PageNumber });
 });
 
 app.Run();
