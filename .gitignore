@@ -5,3 +5,8 @@
 # Node dependencies
 **/node_modules/
 
+api_read_users/.vs/
+api_sync_user/.vs/
+api_sync_user/dist/
+api_write_user/dist/
+api_write_user/.vs/
