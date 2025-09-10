@@ -4,7 +4,7 @@ dotenv.config({ path: '.env'});
 import express from 'express';
 import { client } from './mongodb-init';
 import { createUser, updateUser, deleteUser } from './src/controllers/userController';
-import { UserCreate, UserFilter } from './src/interfaces/user.interface';
+import { User, UserCreate, UserFilter } from './src/interfaces/user.interface';
 
 const port = 3001;
 const app = express();
@@ -18,26 +18,29 @@ app.post('/user', async (req,res) => {
   });
 });
 
-app.put('/users', async (req,res) => {
-  // const { username, email } = req.query;
-  // const pageSize = req.query.pageSize ? parseInt(req.query.pageSize as string) : 0;
-  // const pageNumb =  req.query.pageNumber ? parseInt(req.query.pageNumber as string) : 0;
+// Update user by id
+app.put('/users/:id', async (req,res) => {
+  try {
+    const { id } = req.params;
+    const payload = req.body as Partial<User>;
 
-  // const userQuery: UserFilter = {
-  //   username: username as string,
-  //   email: email as string,
-  // };
-
-  // const result = await getUsers({ pageNumber: pageNumb, pageSize: pageSize, }, { ...userQuery });
-  // res.send({
-  //   response: result,
-  //   pageSize: pageSize,
-  //   pageNumber: pageNumb
-  // });
+    // The controller expects a full User shape; cast for now
+    const result = await updateUser(id, payload as User);
+    res.send({ response: result });
+  } catch (err: any) {
+    res.status(500).send({ error: err?.message ?? 'Unexpected error' });
+  }
 });
 
+// Delete user by id
 app.delete('/users/:id', async (req,res) => {
-
+  try {
+    const { id } = req.params;
+    const result = await deleteUser(id);
+    res.send({ response: result });
+  } catch (err: any) {
+    res.status(500).send({ error: err?.message ?? 'Unexpected error' });
+  }
 });
 
 app.listen(port, async () => {
