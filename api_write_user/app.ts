@@ -5,43 +5,38 @@ import express from 'express';
 import { client } from './mongodb-init';
 import { createUser, updateUser, deleteUser } from './src/controllers/userController';
 import { User, UserCreate, UserFilter } from './src/interfaces/user.interface';
+import handle from './src/shared/response-handler';
 
 const port = 3001;
 const app = express();
 app.use(express.json());
 
-app.post('/user', async (req,res) => {
-  const request = req.body as UserCreate;
-  const result = await createUser(request);
-  res.send({
-    response: result
-  });
-});
+app.post(
+  '/user',
+  handle(async (req) => {
+    const request = req.body as UserCreate;
+    return await createUser(request);
+  })
+);
 
 // Update user by id
-app.put('/users/:id', async (req,res) => {
-  try {
+app.put(
+  '/users/:id',
+  handle(async (req) => {
     const { id } = req.params;
     const payload = req.body as Partial<User>;
-
-    // The controller expects a full User shape; cast for now
-    const result = await updateUser(id, payload as User);
-    res.send({ response: result });
-  } catch (err: any) {
-    res.status(500).send({ error: err?.message ?? 'Unexpected error' });
-  }
-});
+    return await updateUser(id, payload as User);
+  })
+);
 
 // Delete user by id
-app.delete('/users/:id', async (req,res) => {
-  try {
+app.delete(
+  '/users/:id',
+  handle(async (req) => {
     const { id } = req.params;
-    const result = await deleteUser(id);
-    res.send({ response: result });
-  } catch (err: any) {
-    res.status(500).send({ error: err?.message ?? 'Unexpected error' });
-  }
-});
+    return await deleteUser(id);
+  })
+);
 
 app.listen(port, async () => {
   try {    
