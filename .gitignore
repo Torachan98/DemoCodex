@@ -1,6 +1,12 @@
-api_write_user/node_modules/
-api_write_user/dist/
-api_sync_user/node_modules/
+# .NET build directories
+**/bin/
+**/obj/
+
+# Node dependencies
+**/node_modules/
+
+api_read_users/.vs/
+api_sync_user/.vs/
 api_sync_user/dist/
-api_read_users/node_modules/
-api_read_users/dist/
+api_write_user/dist/
+api_write_user/.vs/
